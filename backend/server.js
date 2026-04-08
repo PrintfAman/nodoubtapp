@@ -13,10 +13,24 @@ const app = express();
 
 const server = http.createServer(app);
 
-app.use(cors({
-  origin: '*'
-}));
+const allowedOrigins = [
+  'https://nodoubtapp.vercel.app'
+];
 
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    callback(new Error('Not allowed by CORS'));
+  },
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
 mongoose.connect(process.env.MONGODB_URI)
@@ -29,21 +43,33 @@ mongoose.connect(process.env.MONGODB_URI)
 const postsRouter = require('./routes/posts');
 app.use('/api/posts', postsRouter);
 
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'API route not found' });
+  }
+  next();
+});
+
 const wss = new WebSocket.Server({ server });
 
 wss.on('connection', (ws) => {
   console.log('Client connected');
 
   ws.on('message', async (message) => {
-    const query = message.toString();
-    const searchRegex = new RegExp(query, 'i');
-    const results = await mongoose.model('Post').find({
-      $or: [
-        { title: searchRegex },
-        { body: searchRegex }
-      ]
-    });
-    ws.send(JSON.stringify(results));
+    try {
+      const query = message.toString();
+      const searchRegex = new RegExp(query, 'i');
+      const results = await mongoose.model('Post').find({
+        $or: [
+          { title: searchRegex },
+          { body: searchRegex }
+        ]
+      });
+      ws.send(JSON.stringify(results));
+    } catch (error) {
+      console.error('WebSocket search error:', error);
+      ws.send(JSON.stringify({ error: 'Server error' }));
+    }
   });
 
   ws.on('close', () => {
@@ -55,14 +81,19 @@ const frontendBuildPath = path.join(__dirname, '../frontend/dist');
 if (fs.existsSync(frontendBuildPath)) {
   app.use(express.static(frontendBuildPath));
   app.get('*', (req, res) => {
-    if (req.path.startsWith('/api')) {
-      return res.status(404).json({ message: 'API route not found' });
-    }
     res.sendFile(path.join(frontendBuildPath, 'index.html'));
   });
 }
 
+app.use((err, req, res, next) => {
+  console.error('Global error handler:', err);
+  if (res.headersSent) {
+    return next(err);
+  }
+  res.status(500).json({ error: 'Server error' });
+});
+
 const PORT = parseInt(process.env.PORT, 10) || 5000;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
