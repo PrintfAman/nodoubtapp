@@ -1,6 +1,5 @@
 const express = require('express');
 const http = require('http');
-const cors = require('cors');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const WebSocket = require('ws');
@@ -17,20 +16,22 @@ const allowedOrigins = [
   'https://nodoubtapp.vercel.app'
 ];
 
-const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    callback(new Error('Not allowed by CORS'));
-  },
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  optionsSuccessStatus: 204
-};
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  res.header('Vary', 'Origin');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
 
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
 app.use(express.json());
 
 mongoose.connect(process.env.MONGODB_URI)
@@ -49,6 +50,15 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+app.use((err, req, res, next) => {
+  console.error('Global error handler:', err);
+  if (res.headersSent) {
+    return next(err);
+  }
+  res.status(500).json({ error: 'Server error' });
+});
+
 
 const wss = new WebSocket.Server({ server });
 
@@ -84,14 +94,6 @@ if (fs.existsSync(frontendBuildPath)) {
     res.sendFile(path.join(frontendBuildPath, 'index.html'));
   });
 }
-
-app.use((err, req, res, next) => {
-  console.error('Global error handler:', err);
-  if (res.headersSent) {
-    return next(err);
-  }
-  res.status(500).json({ error: 'Server error' });
-});
 
 const PORT = parseInt(process.env.PORT, 10) || 5000;
 server.listen(PORT, '0.0.0.0', () => {
