@@ -1,0 +1,8 @@
+{
+  "name": "nodoubt-app",
+  "private": true,
+  "scripts": {
+    "postinstall": "cd backend && npm install && cd ../frontend && npm install && npm run build",
+    "start": "bash start.sh"
+  }
+}

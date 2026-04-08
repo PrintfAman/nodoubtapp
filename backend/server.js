@@ -4,6 +4,8 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const WebSocket = require('ws');
+const path = require('path');
+const fs = require('fs');
 
 dotenv.config();
 
@@ -48,6 +50,17 @@ wss.on('connection', (ws) => {
     console.log('Client disconnected');
   });
 });
+
+const frontendBuildPath = path.join(__dirname, '../frontend/dist');
+if (fs.existsSync(frontendBuildPath)) {
+  app.use(express.static(frontendBuildPath));
+  app.get('*', (req, res) => {
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ message: 'API route not found' });
+    }
+    res.sendFile(path.join(frontendBuildPath, 'index.html'));
+  });
+}
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
