@@ -10,6 +10,11 @@ dotenv.config();
 
 const app = express();
 
+// Health check route - must be before all other routes
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 const server = http.createServer(app);
 
 const allowedOrigins = [
@@ -33,13 +38,6 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json());
-
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('MongoDB connected'))
-  .catch((error) => {
-    console.error('MongoDB connection error:', error);
-    process.exit(1);
-  });
 
 const postsRouter = require('./routes/posts');
 app.use('/api/posts', postsRouter);
@@ -95,7 +93,18 @@ if (fs.existsSync(frontendBuildPath)) {
   });
 }
 
-const PORT = parseInt(process.env.PORT, 10) || 5000;
+const PORT = process.env.PORT || 8080;
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+// Connect to MongoDB AFTER server is already listening
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.error('MongoDB error:', err.message));
+
+// SIGTERM handler for graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  process.exit(0);
 });
