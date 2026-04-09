@@ -15,18 +15,21 @@ function App() {
   const [isTranslating, setIsTranslating] = useState(false);
   const [showDevDropdown, setShowDevDropdown] = useState(false);
 
+  const apiBaseUrl = import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL.replace(/\/+$/, '').replace(/\/api\/posts$/, '')
+    : '';
   const wsRef = useRef(null);
   const devDropdownRef = useRef(null);
 
   useEffect(() => {
     const fetchAndSave = async () => {
-      await fetch(`${import.meta.env.VITE_API_URL}/api/posts/fetch-and-save`, {
+      await fetch(`${apiBaseUrl}/api/posts/fetch-and-save`, {
         method: 'POST'
       });
     };
 
     const fetchPosts = async () => {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/posts`);
+      const response = await fetch(`${apiBaseUrl}/api/posts`);
       const data = await response.json();
       setPosts(data);
       setSearchResults(data);
