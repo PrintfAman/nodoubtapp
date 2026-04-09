@@ -82,7 +82,6 @@ function App() {
     
     setIsTranslating(true);
     try {
-      // Translate title
       if (title) {
         const titleResponse = await axios.get('https://translate.googleapis.com/translate_a/single', {
           params: {
@@ -102,7 +101,6 @@ function App() {
         }
       }
 
-      // Translate body text
       if (text) {
         const textResponse = await axios.get('https://translate.googleapis.com/translate_a/single', {
           params: {
